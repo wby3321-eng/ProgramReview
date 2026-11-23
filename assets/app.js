@@ -155,12 +155,6 @@ function treeNode(node, path) {
   if (node.type === 'dir') {
     const n = countFiles(node);
     row.innerHTML = `<span class="caret">▶</span><span class="ico">📁</span><span class="label">${node.name}</span>${n ? `<span class="meta">${n}</span>` : ''}`;
-    // 根节点（目录树第一层）默认展开，其余默认收起
-    const isFirstLevel = path.length <= 2;
-    if (isFirstLevel) {
-      li.classList.add('open');
-      row.querySelector('.caret').classList.add('open');
-    }
     row.onclick = () => {
       li.classList.toggle('open');
       row.querySelector('.caret').classList.toggle('open');
