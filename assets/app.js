@@ -155,8 +155,12 @@ function treeNode(node, path) {
   if (node.type === 'dir') {
     const n = countFiles(node);
     row.innerHTML = `<span class="caret">▶</span><span class="ico">📁</span><span class="label">${node.name}</span>${n ? `<span class="meta">${n}</span>` : ''}`;
-    li.classList.add('open');
-    row.querySelector('.caret').classList.add('open');
+    // 根节点（目录树第一层）默认展开，其余默认收起
+    const isFirstLevel = path.length <= 2;
+    if (isFirstLevel) {
+      li.classList.add('open');
+      row.querySelector('.caret').classList.add('open');
+    }
     row.onclick = () => {
       li.classList.toggle('open');
       row.querySelector('.caret').classList.toggle('open');
@@ -386,19 +390,78 @@ function highlightSearch(html) {
   return html.replace(/<[^>]+>/g, (m) => '\x00' + m + '\x01').replace(re, '<mark>$1</mark>').replace(/\x00([\s\S]*?)\x01/g, '$1');
 }
 
-/* ===== 脑图视图（逻辑图：左根右枝，可拖拽平移）===== */
+/* ===== 脑图视图（卡片式：≤10 个模块纵向，>10 个横向，绿/黄/红进度圆点）===== */
+// 资源目录名（不计入知识点），与 scripts/gen-data.py 中 RESOURCE_DIR 保持一致
+const RESOURCE_DIR_NAME = 'resource';
+const mmStatCache = new WeakMap();
+// 递归统计子树的知识点完成情况（叶子目录有 .md 即已完成）
+function mmStat(node) {
+  if (mmStatCache.has(node)) return mmStatCache.get(node);
+  let res;
+  if (isKnowledgeLeaf(node)) {
+    res = { done: leafHasMd(node) ? 1 : 0, total: 1 };
+  } else {
+    let done = 0;
+    let total = 0;
+    (node.children || [])
+      .filter((c) => c.type === 'dir' && c.name !== RESOURCE_DIR_NAME)
+      .forEach((c) => {
+        const s = mmStat(c);
+        done += s.done;
+        total += s.total;
+      });
+    res = { done, total };
+  }
+  mmStatCache.set(node, res);
+  return res;
+}
+// 绿=全部已复习，黄=部分已复习，红=全部未复习
+function mmStatus(node) {
+  const s = mmStat(node);
+  if (!s.total) return 'none';
+  if (s.done === s.total) return 'done';
+  return s.done > 0 ? 'part' : 'none';
+}
+function mmCard(node, depth, path) {
+  const leaf = isKnowledgeLeaf(node);
+  let cls = 'mm-card';
+  if (depth === 0) cls += ' root';
+  if (depth === 1) cls += ' lv1';
+  const ico = moduleMeta(node.name)[1];
+  const label = depth === 0 ? '📚' : depth === 1 ? `${ico} ${node.name}` : node.name;
+  const jump = leaf ? ` data-jump="${path.join('/')}"` : '';
+  return `<div class="${cls}"${jump}>${label}<i class="mm-dot ${mmStatus(node)}"></i></div>`;
+}
+function mmNode(node, depth, path) {
+  const kids = (node.children || []).filter((c) => c.type === 'dir' && c.name !== RESOURCE_DIR_NAME);
+  // 子节点全部是知识点时，收拢为一个分组容器
+  const isGroup = kids.length >= 2 && kids.every((k) => isKnowledgeLeaf(k));
+  if (isGroup) {
+    const cards = kids.map((k) => mmCard(k, depth + 1, [...path, k.name])).join('');
+    return `<div class="mm-node"><div class="mm-group">
+      <div class="mm-group-title">${node.name}</div>
+      <div class="mm-group-body">${cards}</div>
+    </div></div>`;
+  }
+  const children = kids.length
+    ? `<div class="mm-branches">${kids.map((k) => mmNode(k, depth + 1, [...path, k.name])).join('')}</div>`
+    : '';
+  return `<div class="mm-node">${mmCard(node, depth, path)}${children}</div>`;
+}
 function renderMindmap() {
-  const mods = (currentProvObj().root.children || []).filter((c) => c.type === 'dir');
+  const root = currentProvObj().root;
+  // 第二层（知识库根下的一级模块）数量决定方向
+  const lv2 = (root.children || []).filter((c) => c.type === 'dir' && c.name !== RESOURCE_DIR_NAME);
+  const dir = lv2.length > 10 ? 'h' : 'v';
   $('content').className = 'content';
   $('content').innerHTML = `
     <div class="mindmap-wrap" id="mm-wrap">
-      <div class="mindmap">
-        <div class="mmn right">
-          <div class="mm-label root">${currentProv}</div>
-          <div class="mmn-children">${mods.map((m) => mmHtml(m, 1, [rootName(), m.name])).join('')}</div>
-        </div>
+      <div class="mmtree ${dir}" id="mm-tree" data-dir="${dir}">
+        <svg class="mm-links" id="mm-links"></svg>
+        ${mmNode(root, 0, [rootName()])}
       </div>
     </div>`;
+  // 最底层知识点：点击跳转到「知识」视图下对应目录
   $('content').querySelectorAll('[data-jump]').forEach((el) => {
     el.onclick = () => {
       const path = el.dataset.jump.split('/');
@@ -409,25 +472,46 @@ function renderMindmap() {
     };
   });
   bindPan($('mm-wrap'));
+  requestAnimationFrame(drawMindmapLinks);
 }
-function mmHtml(node, depth, path) {
-  const leaf = isKnowledgeLeaf(node);
-  let cls = 'mm-label';
-  if (depth === 1) cls += ' lv1';
-  if (leaf) cls += leafHasMd(node) ? ' done' : ' pending';
-  let style = '';
-  if (depth === 1) {
-    const [color] = moduleMeta(node.name);
-    style = ` style="border-color:${color};color:${color}"`;
-  }
-  const jump = leaf ? ` data-jump="${path.join('/')}"` : '';
-  const label = `<div class="${cls}"${style}${jump}>${node.name.replace(/\.md$/i, '')}</div>`;
-  const kids = (node.children || []).filter((c) => c.type === 'dir');
-  const children = kids.length
-    ? `<div class="mmn-children">${kids.map((c) => mmHtml(c, depth + 1, [...path, c.name])).join('')}</div>`
-    : '';
-  return `<div class="mmn right">${label}${children}</div>`;
+// 按节点实际位置绘制父→子的贝塞尔曲线
+function drawMindmapLinks() {
+  const tree = $('mm-tree');
+  const svg = $('mm-links');
+  if (!tree || !svg) return;
+  const base = tree.getBoundingClientRect();
+  const w = tree.scrollWidth;
+  const h = tree.scrollHeight;
+  svg.setAttribute('width', w);
+  svg.setAttribute('height', h);
+  svg.setAttribute('viewBox', `0 0 ${w} ${h}`);
+  const horiz = tree.dataset.dir === 'h';
+  let d = '';
+  tree.querySelectorAll('.mm-node').forEach((n) => {
+    const anchor = n.querySelector(':scope > .mm-card, :scope > .mm-group');
+    const branches = n.querySelector(':scope > .mm-branches');
+    if (!anchor || !branches) return;
+    const a = anchor.getBoundingClientRect();
+    const x1 = horiz ? a.right - base.left : a.left - base.left + a.width / 2;
+    const y1 = horiz ? a.top - base.top + a.height / 2 : a.bottom - base.top;
+    branches.querySelectorAll(':scope > .mm-node').forEach((child) => {
+      const c = child.querySelector(':scope > .mm-card, :scope > .mm-group');
+      if (!c) return;
+      const b = c.getBoundingClientRect();
+      const x2 = horiz ? b.left - base.left : b.left - base.left + b.width / 2;
+      const y2 = horiz ? b.top - base.top + b.height / 2 : b.top - base.top;
+      const mx = (x1 + x2) / 2;
+      const my = (y1 + y2) / 2;
+      d += horiz
+        ? `M${x1} ${y1} C${mx} ${y1} ${mx} ${y2} ${x2} ${y2} `
+        : `M${x1} ${y1} C${x1} ${my} ${x2} ${my} ${x2} ${y2} `;
+    });
+  });
+  svg.innerHTML = `<path d="${d}" fill="none" stroke="#d7dce5" stroke-width="1.4" stroke-linecap="round"/>`;
 }
+window.addEventListener('resize', () => {
+  if ($('btn-mindmap') && $('btn-mindmap').classList.contains('active')) drawMindmapLinks();
+});
 function bindPan(wrap) {
   if (!wrap) return;
   let down = false;
@@ -465,6 +549,7 @@ function switchView(v) {
   if (v === 'mindmap') renderMindmap();
   else currentFile ? openFile(currentFile) : renderHome();
 }
+
 $('btn-knowledge').onclick = () => switchView('knowledge');
 $('btn-mindmap').onclick = () => switchView('mindmap');
 

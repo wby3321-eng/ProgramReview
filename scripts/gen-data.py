@@ -223,6 +223,11 @@ def to_topic(node: dict) -> dict:
 
 
 def build_xmind(scope: str, root: dict) -> bytes:
+    # 根下第一层目录数量决定方向，与网页脑图逻辑一致
+    lv2_count = sum(
+        1 for c in root.get("children", []) if c.get("type") == "dir"
+    )
+    structure = "org.xmind.ui.logic.down" if lv2_count <= 10 else "org.xmind.ui.logic.right"
     sheet = {
         "id": new_id(),
         "class": "sheet",
@@ -230,7 +235,7 @@ def build_xmind(scope: str, root: dict) -> bytes:
         "rootTopic": {
             "id": new_id(),
             "title": f"{scope} · {XMIND_SUFFIX}",
-            "structureClass": "org.xmind.ui.logic.right",
+            "structureClass": structure,
             "children": {"attached": [to_topic(c) for c in root.get("children", [])]},
         },
     }
