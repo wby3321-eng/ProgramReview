@@ -21,6 +21,11 @@ Thumbs.db
 data.json
 xmind/
 
+# Python
+.venv/
+__pycache__/
+*.pyc
+
 # 本地预览 / 临时文件
 demo.html
 .trae-html-share-packages/
