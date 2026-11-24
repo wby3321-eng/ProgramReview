@@ -1,0 +1,73 @@
+digraph "树结构概念图" {
+	nodesep=0.55 pad=0.3 rankdir=TB ranksep=0.75
+	node [fontname="PingFang SC" fontsize=15 penwidth=0 shape=circle style=filled]
+	edge [color="#2f2f2f" penwidth=2]
+	1 [label=1 fillcolor="#ff9944"]
+	2 [label=2 fillcolor="#a06cd5"]
+	3 [label=3 fillcolor="#a06cd5"]
+	4 [label=4 fillcolor="#a06cd5"]
+	5 [label=5 fillcolor="#57b894"]
+	6 [label=6 fillcolor="#57b894"]
+	7 [label=7 fillcolor="#57b894"]
+	8 [label=8 fillcolor="#57b894"]
+	9 [label=9 fillcolor="#57b894"]
+	1 -> 2
+	1 -> 3
+	2 -> 4
+	2 -> 5
+	3 -> 6
+	4 -> 7
+	4 -> 8
+	4 -> 9
+	lab_root [label="根节点 root
+没有父节点的节点" color="#bbbbbb" fillcolor="#fafafa" fontcolor="#555555" fontname="PingFang SC" fontsize=11 shape=box style="rounded,dashed"]
+	lab_root -> 1 [arrowhead=open color="#9e9e9e" constraint=false penwidth=1.2 style=dashed]
+	lab_parent [label="父节点 / 子节点
+2 是 4 的父节点
+4 是 2 的子节点" color="#bbbbbb" fillcolor="#fafafa" fontcolor="#555555" fontname="PingFang SC" fontsize=11 shape=box style="rounded,dashed"]
+	lab_parent -> 2 [arrowhead=open color="#9e9e9e" constraint=false penwidth=1.2 style=dashed]
+	lab_sibling [label="兄弟节点
+2 与 3 有同一个父节点" color="#bbbbbb" fillcolor="#fafafa" fontcolor="#555555" fontname="PingFang SC" fontsize=11 shape=box style="rounded,dashed"]
+	lab_sibling -> 3 [arrowhead=open color="#9e9e9e" constraint=false penwidth=1.2 style=dashed]
+	lab_degree [label="节点的度 = 3
+4 有 3 个子节点" color="#bbbbbb" fillcolor="#fafafa" fontcolor="#555555" fontname="PingFang SC" fontsize=11 shape=box style="rounded,dashed"]
+	lab_degree -> 4 [arrowhead=open color="#9e9e9e" constraint=false penwidth=1.2 style=dashed]
+	lab_subtree [label="子树 subtree
+以 4 为根：4、7、8、9" color="#bbbbbb" fillcolor="#fafafa" fontcolor="#555555" fontname="PingFang SC" fontsize=11 shape=box style="rounded,dashed"]
+	lab_subtree -> 4 [arrowhead=open color="#9e9e9e" constraint=false penwidth=1.2 style=dashed]
+	lab_leaf [label="叶子节点 leaf
+7、8、9 没有子节点" color="#bbbbbb" fillcolor="#fafafa" fontcolor="#555555" fontname="PingFang SC" fontsize=11 shape=box style="rounded,dashed"]
+	lab_leaf -> 8 [arrowhead=open color="#9e9e9e" constraint=false penwidth=1.2 style=dashed]
+	lab_height [label="树的高度 = 4
+最长路径：1 → 2 → 4 → 7" color="#bbbbbb" fillcolor="#fafafa" fontcolor="#555555" fontname="PingFang SC" fontsize=11 shape=box style="rounded,dashed"]
+	lab_height -> 9 [arrowhead=open color="#9e9e9e" constraint=false penwidth=1.2 style=dashed]
+	{
+		rank=same
+		lab_root
+		1
+	}
+	{
+		rank=same
+		lab_parent
+		2
+		3
+		lab_sibling
+	}
+	{
+		rank=same
+		lab_degree
+		4
+		5
+		6
+		lab_subtree
+	}
+	{
+		rank=same
+		lab_leaf
+		7
+		8
+		9
+		lab_height
+	}
+	fontcolor="#666666" fontname="PingFang SC" fontsize=11 label="实线 —— 树的边       虚线空心箭头 —— 概念标注       橙色 = 根节点  紫色 = 内部节点  绿色 = 叶子节点" labeljust=l labelloc=b
+}
