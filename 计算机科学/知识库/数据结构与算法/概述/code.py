@@ -4,15 +4,17 @@ import matplotlib.pyplot as plt
 
 def build_time_complexity_plot():
     """绘制常见时间复杂度对比图。"""
+    import os
+
     plt.rcParams['font.sans-serif'] = ['STHeiti']
     plt.rcParams['axes.unicode_minus'] = False
 
     n = np.arange(1, 11, 1)  # 输入规模：1 到 10，步长 1
 
     o1 = np.ones_like(n, dtype=float)
-    ologn = np.log(n)
+    ologn = np.log2(n)
     on = n
-    onlogn = n * np.log(n)
+    onlogn = n * np.log2(n)
     on2 = n ** 2
 
     plt.figure(figsize=(10, 6))
@@ -31,7 +33,12 @@ def build_time_complexity_plot():
     plt.xticks(range(0, 11))
     plt.yticks(range(0, 11))
     plt.grid(True, alpha=0.3)
-    plt.show()
+
+    base = '/Users/wangboyun/workspace/ProgramReview/计算机科学/知识库/resource/'
+    os.makedirs(base, exist_ok=True)
+    plt.savefig(base + 'time_complexity_compare.png', dpi=150, bbox_inches='tight')
+    plt.close()
+    print('已生成 time_complexity_compare.png')
 
 
 def build_tree_plot():
@@ -418,9 +425,165 @@ def build_traversal_grid():
     canvas.convert('RGB').save(f'{base}traversal_all.png')
 
 
-build_tree_plot()
-build_binary_tree_plot()
-build_binary_tree_traversal_plot()
-build_binary_heap_plot()
-build_heap_sift_steps_plot()
-build_traversal_grid()
+def build_heap_sort_steps_plot():
+    """堆排序全过程示意图（一副图）。
+
+    数组 10 8 9 7 5 4 6 3 2 已是大顶堆。每一轮：堆顶与堆尾交换（最大值归位到末尾），
+    新堆顶下沉到正确位置；循环后得到升序 2 3 4 5 6 7 8 9 10。
+    每一行 = 一轮，行内自左向右是「交换 → 下沉各步」。
+    """
+    import io
+
+    from graphviz import Digraph
+    from PIL import Image
+
+    font = 'PingFang SC'
+    base = '/Users/wangboyun/workspace/ProgramReview/计算机科学/知识库/resource/'
+
+    def stage_png(values, size, hl, caption):
+        dot = Digraph(format='png')
+        dot.attr(rankdir='TB', nodesep='0.26', ranksep='0.4', pad='0.08', margin='0')
+        dot.attr('node', shape='circle', style='filled', fontname=font, fontsize='10',
+                 penwidth='0', width='0.56', height='0.56', fixedsize='true')
+        dot.attr('edge', color='#2f2f2f', penwidth='1.3')
+        for i, v in enumerate(values):
+            if i >= size:  # 已排好的尾部
+                color, fc = '#7ec8a0', '#0b3d2e'
+            else:
+                depth = (i + 1).bit_length() - 1
+                color = '#ff9944' if depth == 0 else ('#a06cd5' if depth == 1 else '#7aa6d8')
+                fc = '#ffffff'
+            attrs = dict(fillcolor=color)
+            if i in hl:  # 本轮交换的两个元素
+                attrs.update(color='#e05a3a', penwidth='3.5')
+            label = f'<{v}<br/><font color="{fc}" point-size="7">i={i}</font>>'
+            dot.node(str(i), label, **attrs)
+        for i in range(1, len(values)):
+            dot.edge(str((i - 1) // 2), str(i))
+        dot.attr(label=caption, labelloc='b', labeljust='c',
+                 fontname=font, fontsize='8', fontcolor='#333333')
+        return Image.open(io.BytesIO(dot.pipe(format='png', quiet=True))).convert('RGBA')
+
+    def text_img(text, size=12, color='#333333', bold=False):
+        t = text.replace('&', '&amp;').replace('<', '&lt;').replace('>', '&gt;')
+        body = f'<FONT FACE="{font}" POINT-SIZE="{size}" COLOR="{color}">{t}</FONT>'
+        if bold:
+            body = f'<B>{body}</B>'
+        dot = Digraph(format='png')
+        dot.attr(pad='0.03', margin='0')
+        dot.node('t', f'<{body}>', shape='plaintext')
+        return Image.open(io.BytesIO(dot.pipe(format='png', quiet=True))).convert('RGBA')
+
+    # ---------- 模拟堆排序 ----------
+    # active = 尚未排好的元素个数；下标 i >= active 的元素已排好（绿色）。
+    arr = [10, 8, 9, 7, 5, 4, 6, 3, 2]
+    n = len(arr)
+    active = n
+
+    initial = stage_png(arr, active, set(),
+                        '① 初始大顶堆\n[10, 8, 9, 7, 5, 4, 6, 3, 2]')
+    detail_panels = []   # 第 1 轮：完整下沉细节
+    summary_panels = []  # 其余轮：只给每轮结果
+
+    rnd = 0
+    while active > 1:
+        rnd += 1
+        last = active - 1
+        top_val, tail_val = arr[0], arr[last]
+        arr[0], arr[last] = arr[last], arr[0]
+        active -= 1  # 最大值归位末尾，活跃区缩小
+        detail = (rnd == 1)
+        if detail:
+            detail_panels.append(stage_png(
+                arr, active, {0, last},
+                f'第1轮：堆顶 {top_val} ↔ 堆尾 {tail_val}\n{top_val} 归位 idx{last}'))
+        i, moved = 0, 0
+        while True:
+            l, r = 2 * i + 1, 2 * i + 2
+            largest = i
+            if l < active and arr[l] > arr[largest]:
+                largest = l
+            if r < active and arr[r] > arr[largest]:
+                largest = r
+            if largest == i:
+                if detail:
+                    if moved == 0:
+                        detail_panels.append(stage_png(arr, active, {i},
+                                                       f'堆顶 {arr[i]} 已 ≥ 孩子\n无需下沉'))
+                    else:
+                        detail_panels.append(stage_png(arr, active, {i},
+                                                       f'{arr[i]} 无更大的孩子\n下沉停止，本轮结束'))
+                break
+            sink_val, child_val = arr[i], arr[largest]
+            arr[i], arr[largest] = arr[largest], arr[i]
+            if detail:
+                detail_panels.append(stage_png(
+                    arr, active, {i, largest},
+                    f'{sink_val} 与较大的孩子 {child_val} 交换\n继续向下比较'))
+            i, moved = largest, moved + 1
+        if not detail:
+            summary_panels.append(stage_png(
+                arr, active, {0},
+                f'第{rnd}轮：堆顶 {top_val} ↔ 堆尾 {tail_val}\n'
+                f'{top_val} 归位 idx{last}，下沉后堆顶为 {arr[0]}'))
+
+    final = stage_png(arr, 0, set(), '排序完成\n[2, 3, 4, 5, 6, 7, 8, 9, 10]')
+
+    # ---------- 组装行（每组 = 一个标题 + 一排面板）----------
+    groups = [
+        (None, [initial]),
+        ('第 1 轮：完整展示「堆顶 ↔ 堆尾交换 → 新堆顶逐步下沉」', detail_panels),
+    ]
+    per_row = 4
+    for k in range(0, len(summary_panels), per_row):
+        head = '其余轮次：只展示每轮结束后的结果（下沉过程省略，看文字即可）' if k == 0 else None
+        groups.append((head, summary_panels[k:k + per_row]))
+    groups.append((None, [final]))
+
+    # ---------- 拼成一副图 ----------
+    gap, margin = 12, 26
+    ncol = max(len(p) for _, p in groups)
+    cell_w = max(im.width for _, p in groups for im in p)
+    cell_h = max(im.height for _, p in groups for im in p)
+    W = ncol * cell_w + gap * (ncol - 1) + margin * 2
+
+    title = text_img('堆排序全过程示意图（10 8 9 7 5 4 6 3 2 → 2 3 4 5 6 7 8 9 10）',
+                     size=16, color='#1d3557', bold=True)
+    legend = text_img('橙 = 堆顶   紫 = 第 2 层   蓝 = 更深层   绿 = 已排好   红框 = 本轮交换/关注的元素   '
+                      'i=N = 数组下标', size=10, color='#666666')
+    headers = {h: text_img(h, size=11, color='#2a6f97', bold=True)
+               for h, _ in groups if h}
+
+    H = margin + title.height + 14
+    for h, _ in groups:
+        if h:
+            H += headers[h].height + 4
+        H += cell_h + gap
+    H += legend.height + margin
+
+    canvas = Image.new('RGBA', (W, H), 'white')
+    canvas.alpha_composite(title, ((W - title.width) // 2, margin))
+    y = margin + title.height + 14
+    for h, panels in groups:
+        if h:
+            canvas.alpha_composite(headers[h], ((W - headers[h].width) // 2, y))
+            y += headers[h].height + 4
+        row_w = len(panels) * cell_w + gap * (len(panels) - 1)
+        x = (W - row_w) // 2
+        for im in panels:
+            canvas.alpha_composite(im, (x + (cell_w - im.width) // 2, y + (cell_h - im.height) // 2))
+            x += cell_w + gap
+        y += cell_h + gap
+    canvas.alpha_composite(legend, ((W - legend.width) // 2, H - legend.height - margin))
+    canvas.convert('RGB').save(base + 'heap_sort_steps.png')
+    print('已生成 heap_sort_steps.png')
+
+
+build_heap_sort_steps_plot()
+build_time_complexity_plot()
+# build_tree_plot()
+# build_binary_tree_plot()
+# build_binary_tree_traversal_plot()
+# build_binary_heap_plot()
+# build_heap_sift_steps_plot()
+# build_traversal_grid()
