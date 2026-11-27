@@ -10,9 +10,17 @@ FONT = 'PingFang SC'
 BASE = '/Users/wangboyun/workspace/ProgramReview/计算机科学/知识库/resource/'
 
 
+def _save_fit(img, filename, max_width=1280):
+    """保存前等比缩到合适宽度：200dpi 渲染后降采样，既清晰又不会过大。"""
+    if img.width > max_width:
+        h = round(img.height * max_width / img.width)
+        img = img.resize((max_width, h), Image.Resampling.LANCZOS)
+    img.save(BASE + filename)
+
+
 def _row_png(values, caption, highlights=(), greens=(), purples=()):
     """画一行数组：橙色 = 去程比较/冒泡，紫色 = 回程比较，绿色 = 已有序，蓝色 = 待排序。"""
-    dot = Digraph(format='png')
+    dot = Digraph(format='png', graph_attr={'dpi': '200'})
     dot.attr(rankdir='TB', nodesep='0.12', ranksep='0.05', pad='0.05')
     dot.attr('node', fontname=FONT, penwidth='0')
 
@@ -28,8 +36,8 @@ def _row_png(values, caption, highlights=(), greens=(), purples=()):
             else:
                 fill, fc = '#dfe7ff', '#1d3557'
             c.node(str(j), str(v), shape='box', style='filled,rounded',
-                   fillcolor=fill, fontcolor=fc, fontsize='15',
-                   width='0.72', height='0.72', fixedsize='true')
+                   fillcolor=fill, fontcolor=fc, fontsize='18',
+                   width='0.46', height='0.46', fixedsize='true')
         for j in range(len(values) - 1):
             c.edge(str(j), str(j + 1), style='invis')
 
@@ -52,7 +60,7 @@ def _stack(images, gap=12, margin=18):
 
 def _text_png(text, fontsize, color):
     """用 graphviz 渲染一行文字（中文稳定显示），返回 PIL 图。"""
-    dot = Digraph(format='png')
+    dot = Digraph(format='png', graph_attr={'dpi': '200'})
     dot.attr(bgcolor='white', pad='0.1')
     dot.node('t', text, shape='plain', fontname=FONT,
              fontsize=str(fontsize), fontcolor=color)
@@ -60,10 +68,18 @@ def _text_png(text, fontsize, color):
 
 
 def _add_text_bar(img, top_text, bottom_text):
-    """在图的顶部和底部各加一行文字说明。"""
+    """在图的顶部和底部各加一行文字说明；文字条超宽时等比缩到图宽，避免撑大整图。"""
     top = _text_png(top_text, 24, '#1d3557')
     bot = _text_png(bottom_text, 12, '#555')
-    width = max(img.width, top.width, bot.width)
+
+    def _fit(im):
+        if im.width > img.width:
+            h = round(im.height * img.width / im.width)
+            return im.resize((img.width, h), Image.Resampling.LANCZOS)
+        return im
+
+    top, bot = _fit(top), _fit(bot)
+    width = img.width
     height = img.height + top.height + bot.height + 20
     canvas = Image.new('RGBA', (width, height), 'white')
     canvas.alpha_composite(top, ((width - top.width) // 2, 8))
@@ -110,7 +126,7 @@ def build_bubble_sort_plot():
         '橙色 = 正在比较 / 冒泡的元素    绿色 = 已有序（下一轮不再参与）    蓝色 = 待排序    '
         '时间复杂度 O(n²)，空间 O(1)，稳定',
     )
-    final.save(BASE + 'bubble_sort.png')
+    _save_fit(final, 'bubble_sort.png')
 
 
 def _hstack(left, right, gap=40, margin=30):
@@ -151,7 +167,7 @@ def build_bubble_sort_optimized_plot():
         '优化版：每轮开始置 swapped = False，发生交换则置 True；一轮结束若 swapped 仍为 False，'
         '说明数组已有序，直接 break 跳出最外层循环（此处仅 2 轮）',
     )
-    final.save(BASE + 'bubble_sort_optimized.png')
+    _save_fit(final, 'bubble_sort_optimized.png')
 
 
 def build_cocktail_sort_plot():
@@ -193,7 +209,7 @@ def build_cocktail_sort_plot():
         '此例：第 1 轮把 12 推到右端、1 推到左端，第 2 轮双向均无交换即结束（仅 2 轮）；'
         '普通冒泡因 1 在末尾每轮只能左移一位，需 6 轮',
     )
-    final.save(BASE + 'cocktail_sort.png')
+    _save_fit(final, 'cocktail_sort.png')
 
 
 def _qs_row(values, caption, pivot=-1, pointers=None, highlights=(),
@@ -204,7 +220,7 @@ def _qs_row(values, caption, pivot=-1, pointers=None, highlights=(),
     浅绿底 = 小于 pivot 的区域；浅蓝底 = 大于等于 pivot 的区域；白底 = 未处理；
     下方可挂指针标签（left/right/mark/j）。
     """
-    dot = Digraph(format='png')
+    dot = Digraph(format='png', graph_attr={'dpi': '200'})
     dot.attr(rankdir='TB', nodesep='0.1', ranksep='0.08', pad='0.05')
     dot.attr('node', fontname=FONT, penwidth='0')
     pointers = pointers or {}
@@ -393,7 +409,7 @@ def _trace_quick_sort(arr, partition, pivot_side):
 
 def _full_sort_row(values, caption, active=None, pivot=-1, locked=()):
     """画完整流程的一行：绿=已锁定归位，金=当前基准，蓝=活动子区间，白=其他待处理。"""
-    dot = Digraph(format='png')
+    dot = Digraph(format='png', graph_attr={'dpi': '200'})
     dot.attr(rankdir='TB', nodesep='0.1', ranksep='0.08', pad='0.05')
     dot.attr('node', fontname=FONT, penwidth='0')
     locked = set(locked)
@@ -497,16 +513,32 @@ def _format_caption(cap):
     """
     parts = cap.split('\n')
     colors = ['#333333', '#2a9d8f', '#666666']
-    out = []
+    blocks = []
     for i, p in enumerate(parts):
         c = colors[i] if i < len(colors) else '#666'
-        out.append(f'<FONT COLOR="{c}">{_html_escape(p)}</FONT>')
-    return '<BR/>'.join(out)
+        for line in _wrap_lines(p, 17):
+            blocks.append(f'<FONT COLOR="{c}">{_html_escape(line)}</FONT>')
+    return '<BR ALIGN="LEFT"/>'.join(blocks)
+
+
+def _wrap_lines(text, limit):
+    """按中文字宽折算成若干行，用于控制在节点内的最大行宽。"""
+    lines, cur, w = [], '', 0.0
+    for ch in text:
+        cw = 1.0 if ord(ch) > 127 else 0.55
+        if w + cw > limit and cur:
+            lines.append(cur)
+            cur, w = '', 0.0
+        cur += ch
+        w += cw
+    if cur:
+        lines.append(cur)
+    return lines or ['']
 
 
 def _cell(v, bg, fc):
-    return (f'<TD BGCOLOR="{bg}" WIDTH="36" HEIGHT="28" FIXEDSIZE="TRUE" BORDER="1">'
-            f'<FONT FACE="{FONT}" POINT-SIZE="12" COLOR="{fc}">{v}</FONT></TD>')
+    return (f'<TD BGCOLOR="{bg}" WIDTH="30" HEIGHT="30" FIXEDSIZE="TRUE" BORDER="1">'
+            f'<FONT FACE="{FONT}" POINT-SIZE="18" COLOR="{fc}">{v}</FONT></TD>')
 
 
 def _array_html_label(node):
@@ -516,10 +548,11 @@ def _array_html_label(node):
     n = len(steps[0][0])
     rows_html = []
     # 节点标题（第几轮）
+    title_html = '<BR/>'.join(
+        f'<FONT FACE="{FONT}" POINT-SIZE="15" COLOR="#1d3557"><B>{_html_escape(line)}</B></FONT>'
+        for line in _wrap_lines(node['caption'], 12))
     rows_html.append(
-        f'<TR><TD COLSPAN="{n}" BORDER="0" ALIGN="CENTER">'
-        f'<FONT FACE="{FONT}" POINT-SIZE="11" COLOR="#1d3557"><B>{_html_escape(node["caption"])}</B></FONT>'
-        f'</TD></TR>'
+        f'<TR><TD COLSPAN="{n}" BORDER="0" ALIGN="CENTER">{title_html}</TD></TR>'
     )
     for values, pointers, highlights, pv, cap, lk in steps:
         lk = set(lk)
@@ -543,14 +576,14 @@ def _array_html_label(node):
         for j in range(n):
             labels = [lab for lab, idx in pointers.items() if idx == j]
             txt = ''.join(
-                f'<FONT FACE="{FONT}" POINT-SIZE="9" COLOR="{_PCOLOR.get(lab, "#555")}">{_html_escape(lab)}</FONT>'
+                f'<FONT FACE="{FONT}" POINT-SIZE="12" COLOR="{_PCOLOR.get(lab, "#555")}">{_html_escape(lab)}</FONT>'
                 for lab in labels)
-            pcells.append(f'<TD WIDTH="36" BORDER="0" ALIGN="CENTER">{txt}</TD>')
+            pcells.append(f'<TD WIDTH="30" BORDER="0" ALIGN="CENTER">{txt}</TD>')
         rows_html.append(f'<TR>{"".join(pcells)}</TR>')
         # 说明行（当前状态 + 下一步，两段不同颜色）
         rows_html.append(
             f'<TR><TD COLSPAN="{n}" BORDER="0" ALIGN="LEFT">'
-            f'<FONT FACE="{FONT}" POINT-SIZE="9">{_format_caption(cap)}</FONT>'
+            f'<FONT FACE="{FONT}" POINT-SIZE="12">{_format_caption(cap)}</FONT>'
             f'</TD></TR>'
         )
     return (f'<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="1">'
@@ -559,11 +592,11 @@ def _array_html_label(node):
 
 def _render_expand_tree(nodes, edges, title, legend, filename):
     """把递归分区树横向（从左到右）渲染成 PNG。"""
-    dot = Digraph(format='png')
-    dot.attr(rankdir='LR', splines='polyline', nodesep='0.35', ranksep='0.8',
+    dot = Digraph(format='png', graph_attr={'dpi': '110'})
+    dot.attr(rankdir='LR', splines='polyline', nodesep='0.35', ranksep='0.7',
              pad='0.15', bgcolor='white')
     dot.attr('node', shape='plain', fontname=FONT)
-    dot.attr('edge', fontname=FONT, fontsize='10', color='#aaa',
+    dot.attr('edge', fontname=FONT, fontsize='12', color='#aaa',
              arrowsize='0.7', fontcolor='#777')
 
     by_depth = defaultdict(list)
@@ -679,7 +712,7 @@ def build_bucket_sort_plot():
                      '</TD></TR>')
         label = (f'<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="3" CELLPADDING="2">'
                  f'{rows}</TABLE>>')
-        dot = Digraph(format='png')
+        dot = Digraph(format='png', graph_attr={'dpi': '200'})
         dot.attr(pad='0.06')
         dot.attr('node', shape='invtrapezium', style='filled', fillcolor='#eef2fb',
                  color='#5a6b99', penwidth='1.5', fontname=FONT)
@@ -733,7 +766,7 @@ def build_bucket_sort_plot():
         '蓝色 = 待排序    绿色 = 已排序    梯形 = 桶（上宽下窄）    桶号与区间由公式算出    '
         '思路：算区间 → 分桶 → 桶内排序 → 按桶拼接；平均 O(n+k)，最坏 O(n²)（元素全挤进同一桶时退化）',
     )
-    final.save(BASE + 'bucket_sort.png')
+    _save_fit(final, 'bucket_sort.png', 1020)
 
 
 def build_counting_sort_plot():
@@ -765,7 +798,7 @@ def build_counting_sort_plot():
 
     def _cells_png(cells, caption=''):
         """cells: [(文字, 底色, 字色)]，横排一行格子。"""
-        dot = Digraph(format='png')
+        dot = Digraph(format='png', graph_attr={'dpi': '200'})
         dot.attr(rankdir='TB', nodesep='0.12', ranksep='0.05', pad='0.05')
         dot.attr('node', fontname=FONT, penwidth='0')
         with dot.subgraph() as c:
@@ -800,7 +833,7 @@ def build_counting_sort_plot():
                 '</TABLE></TD>')
         label = ('<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="3">'
                  f'<TR>{"".join(cells)}</TR></TABLE>>')
-        dot = Digraph(format='png')
+        dot = Digraph(format='png', graph_attr={'dpi': '200'})
         dot.attr(pad='0.05')
         dot.attr('node', shape='plaintext', fontname=FONT, penwidth='0')
         dot.node('t', label)
@@ -870,7 +903,7 @@ def build_counting_sort_plot():
     assert [int(t[:2]) for t in out] == sorted(arr)
     assert out.index('95₁') < out.index('95₂'), '95 的相对顺序被破坏'
     print('计数排序结果：', out)
-    final.save(BASE + 'counting_sort.png')
+    _save_fit(final, 'counting_sort.png')
 
 
 def build_counting_sort_compare_plot():
@@ -912,7 +945,7 @@ def build_counting_sort_compare_plot():
             tds.append(f'<TD BORDER="0" CELLPADDING="2">{block}</TD>')
         label = ('<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0"><TR>'
                  + ''.join(tds) + '</TR></TABLE>>')
-        dot = Digraph(format='png')
+        dot = Digraph(format='png', graph_attr={'dpi': '200'})
         dot.attr(pad='0.04')
         dot.attr('node', shape='plaintext', fontname=FONT, penwidth='0')
         dot.node('t', label)
@@ -965,7 +998,7 @@ def build_counting_sort_compare_plot():
                  f'<TR>{lab("count", "出现次数")}{row1}</TR>'
                  f'<TR>{lab("累计 ≤ v", "前缀和 → 右边界")}{row2}</TR>'
                  '</TABLE>>')
-        dot = Digraph(format='png')
+        dot = Digraph(format='png', graph_attr={'dpi': '200'})
         dot.attr(pad='0.05')
         dot.attr('node', shape='plaintext', fontname=FONT, penwidth='0')
         dot.node('t', label)
@@ -1046,13 +1079,13 @@ def build_counting_sort_compare_plot():
     assert unstable_out == ['90', '94', '95₂', '95₁', '99']
     print('稳定版：', stable_out)
     print('不稳定版：', unstable_out)
-    final.save(BASE + 'counting_sort_compare.png')
+    _save_fit(final, 'counting_sort_compare.png')
 
 
 if __name__ == '__main__':
-    # build_bubble_sort_plot()
-    # build_bubble_sort_optimized_plot()
-    # build_cocktail_sort_plot()
+    build_bubble_sort_plot()
+    build_bubble_sort_optimized_plot()
+    build_cocktail_sort_plot()
 
     build_quick_sort_hoare_expand_plot()
     build_quick_sort_lomuto_expand_plot()

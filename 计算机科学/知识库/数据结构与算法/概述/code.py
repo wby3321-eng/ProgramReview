@@ -36,7 +36,7 @@ def build_time_complexity_plot():
 
     base = '/Users/wangboyun/workspace/ProgramReview/计算机科学/知识库/resource/'
     os.makedirs(base, exist_ok=True)
-    plt.savefig(base + 'time_complexity_compare.png', dpi=150, bbox_inches='tight')
+    plt.savefig(base + 'time_complexity_compare.png', dpi=300, bbox_inches='tight')
     plt.close()
     print('已生成 time_complexity_compare.png')
 
@@ -52,7 +52,7 @@ def build_tree_plot():
 
     font = 'PingFang SC'
 
-    dot = Digraph(name='树结构概念图', format='png')
+    dot = Digraph(name='树结构概念图', format='png', graph_attr={'dpi': '200'})
     dot.attr(rankdir='TB', nodesep='0.55', ranksep='0.75', pad='0.3')
     dot.attr('node', shape='circle', style='filled', fontname=font, fontsize='15', penwidth='0')
     # 树的边：深色实线，和标注线区分开
@@ -124,7 +124,7 @@ def build_binary_tree_plot():
 
     font = 'PingFang SC'
 
-    dot = Digraph(name='二叉查找树', format='png')
+    dot = Digraph(name='二叉查找树', format='png', graph_attr={'dpi': '200'})
     dot.attr(rankdir='TB', nodesep='0.6', ranksep='0.9', pad='0.3')
     dot.attr('node', shape='circle', style='filled', fontname=font, fontsize='14',
              penwidth='0', width='0.62', height='0.62', fixedsize='true')
@@ -237,7 +237,7 @@ def build_binary_tree_traversal_plot():
         filename, rule = rules[name]
         order = {v: i + 1 for i, v in enumerate(seq)}
 
-        dot = Digraph(name=f'{name}遍历', format='png')
+        dot = Digraph(name=f'{name}遍历', format='png', graph_attr={'dpi': '200'})
         dot.attr(rankdir='TB', nodesep='0.6', ranksep='0.6', pad='0.25')
         dot.attr('node', shape='circle', style='filled', fontname=font, fontsize='13',
                  penwidth='0', width='0.85', height='0.85', fixedsize='true')
@@ -273,7 +273,7 @@ def build_binary_heap_plot():
     # 数组表示（下标从 0 开始），这棵树满足最大堆性质
     heap = [90, 70, 80, 50, 60, 30, 40]
 
-    dot = Digraph(name='二叉堆', format='png')
+    dot = Digraph(name='二叉堆', format='png', graph_attr={'dpi': '200'})
     dot.attr(rankdir='TB', nodesep='0.55', ranksep='0.85', pad='0.3')
     dot.attr('node', shape='circle', style='filled', fontname=font, fontsize='13',
              penwidth='0', width='0.8', height='0.8', fixedsize='true')
@@ -345,7 +345,7 @@ def build_heap_sift_steps_plot():
     base = '/Users/wangboyun/workspace/ProgramReview/计算机科学/知识库/resource/'
 
     def stage_png(values, caption, moving, compared):
-        dot = Digraph(format='png')
+        dot = Digraph(format='png', graph_attr={'dpi': '200'})
         dot.attr(rankdir='TB', nodesep='0.35', ranksep='0.5', pad='0.15')
         dot.attr('node', shape='circle', style='filled', fontname=font, fontsize='11',
                  penwidth='0', width='0.68', height='0.68', fixedsize='true')
@@ -441,7 +441,7 @@ def build_heap_sort_steps_plot():
     base = '/Users/wangboyun/workspace/ProgramReview/计算机科学/知识库/resource/'
 
     def stage_png(values, size, hl, caption):
-        dot = Digraph(format='png')
+        dot = Digraph(format='png', graph_attr={'dpi': '200'})
         dot.attr(rankdir='TB', nodesep='0.26', ranksep='0.4', pad='0.08', margin='0')
         dot.attr('node', shape='circle', style='filled', fontname=font, fontsize='10',
                  penwidth='0', width='0.56', height='0.56', fixedsize='true')
@@ -469,7 +469,7 @@ def build_heap_sort_steps_plot():
         body = f'<FONT FACE="{font}" POINT-SIZE="{size}" COLOR="{color}">{t}</FONT>'
         if bold:
             body = f'<B>{body}</B>'
-        dot = Digraph(format='png')
+        dot = Digraph(format='png', graph_attr={'dpi': '200'})
         dot.attr(pad='0.03', margin='0')
         dot.node('t', f'<{body}>', shape='plaintext')
         return Image.open(io.BytesIO(dot.pipe(format='png', quiet=True))).convert('RGBA')
@@ -530,11 +530,11 @@ def build_heap_sort_steps_plot():
     final = stage_png(arr, 0, set(), '排序完成\n[2, 3, 4, 5, 6, 7, 8, 9, 10]')
 
     # ---------- 组装行（每组 = 一个标题 + 一排面板）----------
+    per_row = 4
     groups = [
         (None, [initial]),
         ('第 1 轮：完整展示「堆顶 ↔ 堆尾交换 → 新堆顶逐步下沉」', detail_panels),
     ]
-    per_row = 4
     for k in range(0, len(summary_panels), per_row):
         head = '其余轮次：只展示每轮结束后的结果（下沉过程省略，看文字即可）' if k == 0 else None
         groups.append((head, summary_panels[k:k + per_row]))
@@ -544,7 +544,7 @@ def build_heap_sort_steps_plot():
     gap, margin = 12, 26
     ncol = max(len(p) for _, p in groups)
     cell_w = max(im.width for _, p in groups for im in p)
-    cell_h = max(im.height for _, p in groups for im in p)
+    row_heights = [max(im.height for im in p) for _, p in groups]
     W = ncol * cell_w + gap * (ncol - 1) + margin * 2
 
     title = text_img('堆排序全过程示意图（10 8 9 7 5 4 6 3 2 → 2 3 4 5 6 7 8 9 10）',
@@ -555,35 +555,39 @@ def build_heap_sort_steps_plot():
                for h, _ in groups if h}
 
     H = margin + title.height + 14
-    for h, _ in groups:
+    for (h, _), rh in zip(groups, row_heights):
         if h:
             H += headers[h].height + 4
-        H += cell_h + gap
+        H += rh + gap
     H += legend.height + margin
 
     canvas = Image.new('RGBA', (W, H), 'white')
     canvas.alpha_composite(title, ((W - title.width) // 2, margin))
     y = margin + title.height + 14
-    for h, panels in groups:
+    for (h, panels), rh in zip(groups, row_heights):
         if h:
             canvas.alpha_composite(headers[h], ((W - headers[h].width) // 2, y))
             y += headers[h].height + 4
         row_w = len(panels) * cell_w + gap * (len(panels) - 1)
         x = (W - row_w) // 2
         for im in panels:
-            canvas.alpha_composite(im, (x + (cell_w - im.width) // 2, y + (cell_h - im.height) // 2))
+            canvas.alpha_composite(im, (x + (cell_w - im.width) // 2, y + (rh - im.height) // 2))
             x += cell_w + gap
-        y += cell_h + gap
+        y += rh + gap
     canvas.alpha_composite(legend, ((W - legend.width) // 2, H - legend.height - margin))
-    canvas.convert('RGB').save(base + 'heap_sort_steps.png')
+    final = canvas.convert('RGB')
+    if final.width > 1500:
+        final = final.resize(
+            (1500, round(final.height * 1500 / final.width)), Image.Resampling.LANCZOS)
+    final.save(base + 'heap_sort_steps.png')
     print('已生成 heap_sort_steps.png')
 
 
 build_heap_sort_steps_plot()
 build_time_complexity_plot()
-# build_tree_plot()
-# build_binary_tree_plot()
-# build_binary_tree_traversal_plot()
-# build_binary_heap_plot()
-# build_heap_sift_steps_plot()
-# build_traversal_grid()
+build_tree_plot()
+build_binary_tree_plot()
+build_binary_tree_traversal_plot()
+build_binary_heap_plot()
+build_heap_sift_steps_plot()
+build_traversal_grid()

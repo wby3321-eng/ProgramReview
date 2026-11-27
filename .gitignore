@@ -29,3 +29,4 @@ __pycache__/
 # 本地预览 / 临时文件
 demo.html
 .trae-html-share-packages/
+.trae/
